@@ -1,5 +1,9 @@
+/**
+ * g++ detectLoad.cpp `pkg-config --cflags --libs opencv` -lwiringPi -lpthread
+ *
+ **/
+
 #include "common.h"
-//#include 
 using namespace cv;
 using namespace std;
 
@@ -11,28 +15,44 @@ void moveDirection(Mat src,int cols, int* x,int* y);
 int main(void) {
 	Mat src/*, hsv_copy*/, hsv, bin, small, maxonly;
 	uchar param[2][3] = { {0,0,120},{180,255,255} };
-	int x = 0, y = 0;
+	int x = 0, y = 0,count = 0;
 
 	VideoCapture cap;
-	cap.open(1);
+	cap.open(0);
 	if (!cap.isOpened())return 1;
 
+	cap >> src;
+	//flip(src,src,-1);
+	//imwrite("src.jpg",src);
 	while (1) {
 		cap >> src;
+		//cout << "width:" << src.cols << "  height:" << src.rows << endl;
+
 		resize(src, small, Size(src.cols / 5, src.rows / 5));
+		flip(small,small,-1);
 		cvtColor(small, hsv, CV_BGR2HSV);
 
 		bin = hsv2bin(hsv,param,false);
 		maxonly=pickUpBiggestLine(bin);
 		Mat structElem = getStructuringElement(MORPH_RECT, Size(3, 3));
 		dilate(maxonly, maxonly,structElem);
-		imshow("maxonly", maxonly);
+		//imshow("maxonly", maxonly);
 
 		moveDirection(maxonly, maxonly.cols, &x, &y);
 
-		int key = waitKey(20);
+		int key = waitKey(100);
 		if (key == 'q') break;
 		changeRangePamameter(key, param);
+/*		
+		count++;
+		if(count>10){
+			//imwrite("bin.jpg",bin);
+			//imwrite("maxonly.jpg",maxonly);
+			//imwrite("hsv.jpg",hsv);
+			count=0;
+			waitKey(1000);
+		}
+		*/
 	}
 	destroyAllWindows();
 
@@ -57,6 +77,9 @@ void changeRangePamameter(int key, uchar param[2][3]) {
 	case 'v':if (param[1][2] - 5 > param[0][2])param[1][2] -= 5; break;
 	case 'b':if (param[1][2] + 5 <= 256)       param[1][2] += 5; break;
 	}
+//	for(int i=0;i<3;i++) cout <<(int)param[0][i]<< " ";
+//	for(int i=0;i<3;i++) cout <<(int)param[1][i]<<" ";
+//	cout << endl;
 }
 
 Mat pickUpBiggestLine(Mat src) {
@@ -103,26 +126,24 @@ void moveDirection(Mat src,int cols, int* x, int* y) {
 		if (i == 8)pickRows[i] = src.row(0);
 		else pickRows[i] = src.row((int)(src.rows * (8 - i) / 8) - 1);
 
-//		cout << i << ":";
 		for (int j = 0; j < cols; j++) {
-//			cout << (int)pickRows[i][j]/255;
-			sum += pickRows[i][j]/255;
-			sumval += j * (pickRows[i][j]/255);
-		}//cout << endl;
+			int temp = pickRows[i][j]==0?0:1;
+			cout << temp;
+			sum += temp;
+			sumval += j * temp;
+		}cout << endl;
 		if (sum == 0)avg[i] = 0;
+		else if(sum>40)avg[i] = 0;
 		else avg[i] = sumval / sum;
 	}
 
-	//ªŒ³‚ğŠî€‚É³‹K‰»‚·‚éB
 	sum = 0; *y = 9;
 	for (int i = 0; i < 9; i++) {
-		if (avg[i] == 0) {*y -= 1;}
+		if (avg[i] == 0) {*y = i;continue;}
 		avg[i] -= cols / 2;
-//		cout << avg[i] * 8 / (i + 8) << " ";
 		sum += avg[i] * 8 / (i + 8);
 	}
-	//cout << endl;
 	if (*y == 0) *x = -1;
-	else *x = sum * 9 / *y;
+	else *x = sum / *y;
 	cout << "x:" << *x << "  y:" << *y << endl;
 }
