@@ -1,0 +1,3 @@
+mstsc
+raspistill -o temp.jpg
+g++ hoge.cpp `pkg-config --cflag --libs opencv` -lwiringPi -lpthread
